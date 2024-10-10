@@ -16,7 +16,7 @@ ext {
 }
 
 group "com.github.ironman19933"
-version "3.4.0"
+version "3.4.1"
 
 sourceCompatibility = '11'
 
@@ -41,6 +41,7 @@ dependencies {
     api 'io.springfox:springfox-boot-starter:3.0.0'
     api 'io.github.lognet:grpc-spring-boot-starter:4.7.0'
     api 'org.apache.commons:commons-lang3:3.12.0'
+    api 'org.apache.commons:commons-text:1.10.0'
     api "org.jadira.usertype:usertype.core:7.0.0.CR1"
     api "com.querydsl:querydsl-jpa:5.0.0"
     api 'com.google.guava:guava:32.0.1-jre'
@@ -52,6 +53,11 @@ dependencies {
     api 'com.google.auto.service:auto-service:1.1.1'
     api 'org.javers:javers-spring-boot-starter-sql:6.6.5'
     api 'com.google.code.gson:gson:2.9.0'
+    api 'org.springframework.cloud:spring-cloud-aws-messaging:2.2.6.RELEASE'
+    api 'org.springframework.cloud:spring-cloud-starter-aws:2.2.6.RELEASE'
+    api 'com.graphql-java-kickstart:graphql-webclient-spring-boot-starter:1.0.0'
+    api 'javax.validation:validation-api:2.0.1.Final'
+    api 'org.hibernate.validator:hibernate-validator:6.2.0.Final'
 
     annotationProcessor(
             platform("org.springframework.boot:spring-boot-dependencies:2.7.1"),
@@ -60,7 +66,8 @@ dependencies {
             "com.querydsl:querydsl-apt:5.0.0:jpa",
             "org.projectlombok:lombok:1.18.26",
             "org.mapstruct:mapstruct-processor:1.5.3.Final",
-            "com.google.auto.service:auto-service:1.1.1"
+            "com.google.auto.service:auto-service:1.1.1",
+            'org.springframework.boot:spring-boot-starter-validation'
     )
 }
 
