@@ -7,13 +7,12 @@ import org.trips.service_framework.constants.CmsConstants;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Objects;
 
 
 public class CmsUtils {
 
     public static String sanitizeInput(String attribute, String value) {
-        if (StringUtils.isEmpty(value) || CmsConstants.NOT_APPLICABLE.equals(value)) {
+        if (isNull(value)) {
             return CmsConstants.NOT_APPLICABLE;
         }
 
@@ -43,5 +42,13 @@ public class CmsUtils {
         treatment = treatment.replace("[", "").replace("]", "");
         treatment = treatment.replaceAll("\"", "");
         return treatment.trim();
+    }
+
+    public static boolean isNull(String str) {
+        return StringUtils.isEmpty(str) || CmsConstants.NOT_APPLICABLE.equals(str);
+    }
+
+    public static boolean nonNull(String str) {
+        return !isNull(str);
     }
 }

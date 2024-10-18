@@ -1,6 +1,7 @@
 package org.trips.service_framework.services;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.Sets;
 import graphql.kickstart.spring.webclient.boot.GraphQLRequest;
 import graphql.kickstart.spring.webclient.boot.GraphQLResponse;
 import graphql.kickstart.spring.webclient.boot.GraphQLWebClient;
@@ -17,6 +18,7 @@ import org.trips.service_framework.dtos.SkuAttributes;
 import org.trips.service_framework.events.SnsEventPublisher;
 import org.trips.service_framework.events.dto.SkuCreationTopicMessage;
 import org.trips.service_framework.exceptions.CmsException;
+import org.trips.service_framework.exceptions.NotAllowedException;
 import org.trips.service_framework.exceptions.NotFoundException;
 import org.trips.service_framework.heplers.CmsHelper;
 import org.trips.service_framework.utils.GraphQLUtils;
@@ -87,8 +89,9 @@ public class CmsService {
         return response;
     }
 
-    public CmsSkuResponse getSkuByCode(String code) {
-        Map<String, Object> requestParams = cmsHelper.getSearchQueryFromSkuCode(code);
+    public List<Sku> getSkuByCodes(List<String> codes) {
+        Set<String> uniqueSkuCodes = Sets.newHashSet(codes);
+        Map<String, Object> requestParams = cmsHelper.getSearchQueryFromSkuCodes(uniqueSkuCodes);
 
         log.info("Searching for SKU by code from CMS, Payload: {}", requestParams);
         GraphQLRequest searchSkus = GraphQLRequest.builder()
@@ -100,19 +103,19 @@ public class CmsService {
 
         CmsSkuResponse response = skuSearchHelper(searchSkus);
 
-        if (Objects.isNull(response) || Objects.isNull(response.getData())) {
-            throw new CmsException(String.format("SKU search by code returned null response. Search code: %s", code));
+        if (Objects.isNull(response) || Objects.isNull(response.getData()) || response.getData().getSearchSkus().isEmpty()) {
+            throw new CmsException(String.format("SKU search by codes returned null or empty response. Search codes: %s", codes));
         }
 
-        if (response.getData().getSearchSkus().isEmpty()) {
-            throw new CmsException(String.format("No SKU found for the given sku code: %s", code));
+        List<Sku> skus = response.getData().getSearchSkus();
+        Set<String> responseSkuList = skus.stream().map(Sku::getCode).collect(Collectors.toSet());
+        Sets.SetView<String> lostSkus = Sets.difference(uniqueSkuCodes, responseSkuList);
+
+        if (!lostSkus.isEmpty()) {
+            throw new NotAllowedException(String.format("SKUs with these codes not found: %s", lostSkus));
         }
 
-        if (response.getData().getSearchSkus().size() > 1) {
-            throw new CmsException(String.format("Multiple SKU found for the provided sku code: %s", code));
-        }
-
-        return response;
+        return skus;
     }
 
     public CmsSkuResponse getSkuByAttributes(SkuAttributes attributes) {
@@ -199,8 +202,7 @@ public class CmsService {
         DateTime referenceTime = Objects.nonNull(createdAt) ? createdAt : DateTime.now();
         Date defaultShelfLife = referenceTime.plusYears(2).toDate();
 
-        CmsSkuResponse response = getSkuByCode(skuCode);
-        Sku sku = response.getData().searchSkus.get(0);
+        Sku sku = getSkuByCodes(List.of(skuCode)).get(0);
 
         if (sku.getShelfLife().isEmpty()) {
             log.info("CMS: received empty shelfLife for skuCode: {}, using defaultShelfLife: {}", skuCode, defaultShelfLife);

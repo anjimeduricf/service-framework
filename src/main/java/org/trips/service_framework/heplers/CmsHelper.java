@@ -26,6 +26,7 @@ public class CmsHelper {
                 .treatment(attributeMap.get("treatment"))
                 .grade(attributeMap.get("grade"))
                 .quality(attributeMap.get("quality"))
+                .certification(attributeMap.get("certification"))
                 .build();
     }
 
@@ -38,14 +39,21 @@ public class CmsHelper {
         );
     }
 
-    public Map<String, Object> getSearchQueryFromSkuCode(String code) {
-        Map<String, Object> requestMap = createRequestMap("code", code, "EQ", false);
+    public Map<String, Object> getSearchQueryFromSkuCodes(Collection<String> codes) {
+        Map<String, Object> requestMap = Map.of(
+                "value", codes,
+                "name", "code",
+                "operator", "IN",
+                "isAttribute", false
+        );
+
         return Map.of("searchQuery", Map.of("filters", List.of(requestMap)));
     }
 
     public Map<String, Object> getSearchQueryFromAttributes(SkuAttributes skuAttributes) {
-        List<String> attributeNames = List.of("species", "product_type", "spec", "catch_type", "freezing_method",
-                "packing", "glazing_percentage", "unit_weight", "quantity_per_unit", "unit_per_carton", "treatment", "grade", "quality");
+        List<String> attributeNames = List.of("species", "product_type", "spec", "catch_type",
+                "freezing_method", "packing", "glazing_percentage", "unit_weight",
+                "quantity_per_unit", "unit_per_carton", "treatment", "grade", "quality", "certification");
 
         List<Map<String, Object>> attributeList = new ArrayList<>();
         attributeNames.forEach(attribute -> {
@@ -74,7 +82,7 @@ public class CmsHelper {
             attributeMap.put("glazing_percentage", glazingPercentage + "% Glazing");
         }
 
-        String skuNameTemplate = "${species} ${catch_type} ${product_type} ${spec} ${grade} ${quality} ${freezing_method} ${treatment} ${glazing_percentage} ${packing} ${unitData} ${unit_weight}";
+        String skuNameTemplate = "${species} ${catch_type} ${product_type} ${spec} ${grade} ${quality} ${freezing_method} ${treatment} ${glazing_percentage} ${packing} ${unitData} ${unit_weight} ${certification}";
         return StringSubstitutor.replace(skuNameTemplate, attributeMap).replaceAll(" +", " ");
     }
 }

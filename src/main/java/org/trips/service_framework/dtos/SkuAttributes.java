@@ -4,12 +4,12 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.trips.service_framework.utils.CmsUtils;
 
 import javax.validation.constraints.AssertTrue;
 import javax.validation.constraints.NotEmpty;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Objects;
 import java.util.function.Function;
 
 @Data
@@ -23,7 +23,6 @@ public class SkuAttributes {
     private String species;
     @NotEmpty(message = "Product type is required")
     private String productType;
-    @NotEmpty(message = "Quality is required")
     private String quality;
     private String freezingMethod;
     private String packing;
@@ -34,12 +33,13 @@ public class SkuAttributes {
     private String unitPerCarton;
     private String catchType;
     private String grade;
+    private String certification;
 
     @AssertTrue(message = "Quantity information format is not correct")
     public boolean isOk() {
-        return (Objects.nonNull(unitPerCarton) && Objects.nonNull(quantityPerUnit) && Objects.isNull(unitWeight)) ||
-                (Objects.isNull(unitPerCarton) && Objects.isNull(quantityPerUnit) && Objects.nonNull(unitWeight)) ||
-                (Objects.isNull(unitPerCarton) && Objects.isNull(quantityPerUnit) && Objects.isNull(unitWeight));
+        return (CmsUtils.nonNull(unitPerCarton) && CmsUtils.nonNull(quantityPerUnit) && CmsUtils.isNull(unitWeight)) ||
+                (CmsUtils.isNull(unitPerCarton) && CmsUtils.isNull(quantityPerUnit) && CmsUtils.nonNull(unitWeight)) ||
+                (CmsUtils.isNull(unitPerCarton) && CmsUtils.isNull(quantityPerUnit) && CmsUtils.isNull(unitWeight));
     }
 
     public static Map<String, Function<SkuAttributes, Object>> attributeGetters() {
@@ -57,6 +57,7 @@ public class SkuAttributes {
             put("treatment", SkuAttributes::getTreatment);
             put("grade", SkuAttributes::getGrade);
             put("quality", SkuAttributes::getQuality);
+            put("certification", SkuAttributes::getCertification);
         }};
 
         return attributeGetters;
