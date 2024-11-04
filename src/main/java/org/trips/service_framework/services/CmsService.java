@@ -10,6 +10,7 @@ import org.joda.time.DateTime;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.client.reactive.ReactorClientHttpConnector;
 import org.springframework.stereotype.Component;
+import org.springframework.util.CollectionUtils;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.trips.service_framework.constants.CmsConstants;
 import org.trips.service_framework.dtos.CmsSkuResponse;
@@ -20,7 +21,7 @@ import org.trips.service_framework.events.dto.SkuCreationTopicMessage;
 import org.trips.service_framework.exceptions.CmsException;
 import org.trips.service_framework.exceptions.NotAllowedException;
 import org.trips.service_framework.exceptions.NotFoundException;
-import org.trips.service_framework.heplers.CmsHelper;
+import org.trips.service_framework.helpers.CmsHelper;
 import org.trips.service_framework.utils.GraphQLUtils;
 import org.trips.service_framework.utils.ValidationUtils;
 import reactor.netty.http.client.HttpClient;
@@ -72,7 +73,14 @@ public class CmsService {
         this.graphQLClient = GraphQLWebClient.newInstance(webClient, this.objectMapper);
     }
 
-    public CmsSkuResponse skuSearchHelper(GraphQLRequest searchSkus) {
+    public CmsSkuResponse skuSearchHelper(String operationName, String resourcePath, Map<String, Object> requestParams) {
+        GraphQLRequest searchSkus = GraphQLRequest.builder()
+                .operationName(operationName)
+                .resource(gqlUtils.getQueryFilePath(resourcePath))
+                .variables(requestParams)
+                .header("saas-namespace", cmsNamespaceId)
+                .build();
+
         log.info("Search sku request header: {}", searchSkus.getHeaders());
 
         GraphQLResponse skuResponse = graphQLClient.post(searchSkus).block();
@@ -93,17 +101,10 @@ public class CmsService {
         Set<String> uniqueSkuCodes = Sets.newHashSet(codes);
         Map<String, Object> requestParams = cmsHelper.getSearchQueryFromSkuCodes(uniqueSkuCodes);
 
-        log.info("Searching for SKU by code from CMS, Payload: {}", requestParams);
-        GraphQLRequest searchSkus = GraphQLRequest.builder()
-                .operationName("SearchSkuByCode")
-                .resource(gqlUtils.getQueryFilePath("searchSkuByCode.graphql"))
-                .variables(requestParams)
-                .header("saas-namespace", cmsNamespaceId)
-                .build();
+        log.info("Searching for SKUs by code from CMS, Payload: {}", requestParams);
+        CmsSkuResponse response = skuSearchHelper("SearchSkuByCode", "searchSkuByCode.graphql", requestParams);
 
-        CmsSkuResponse response = skuSearchHelper(searchSkus);
-
-        if (Objects.isNull(response) || Objects.isNull(response.getData()) || response.getData().getSearchSkus().isEmpty()) {
+        if (Objects.isNull(response) || Objects.isNull(response.getData()) || CollectionUtils.isEmpty(response.getData().getSearchSkus())) {
             throw new CmsException(String.format("SKU search by codes returned null or empty response. Search codes: %s", codes));
         }
 
@@ -118,29 +119,27 @@ public class CmsService {
         return skus;
     }
 
-    public CmsSkuResponse getSkuByAttributes(SkuAttributes attributes) {
+    // This method returns an exact SKU based on the attributes provided.
+    public Sku getSkuByAttributes(SkuAttributes attributes) {
         Map<String, Object> requestParams = cmsHelper.getSearchQueryFromAttributes(attributes);
 
         log.info("Searching for SKU by attributes from CMS, Payload: {}", requestParams);
-        GraphQLRequest searchSkus = GraphQLRequest.builder()
-                .operationName("SearchSkus")
-                .resource(gqlUtils.getQueryFilePath("searchSku.graphql"))
-                .variables(requestParams)
-                .header("saas-namespace", cmsNamespaceId)
-                .build();
-
-        CmsSkuResponse response = skuSearchHelper(searchSkus);
+        CmsSkuResponse response = skuSearchHelper("SearchSkus", "searchSku.graphql", requestParams);
 
         if (Objects.isNull(response) || Objects.isNull(response.getData())) {
-            throw new CmsException(String.format("SKU search by attribute returned null response. Search attributes: %s", requestParams));
+            throw new CmsException("SKU search by attributes returned a null response");
         }
 
-        if (response.getData().getSearchSkus().isEmpty()) {
-            log.error("No SKU found for the given sku attributes");
-            throw new CmsException(String.format("SKU search returned no SKUs. Search attributes: %s", requestParams));
+        if (CollectionUtils.isEmpty(response.getData().getSearchSkus())) {
+            throw new CmsException("No SKU found for the given sku attributes");
         }
 
-        return response;
+        if (response.getData().searchSkus.size() > 1) {
+            log.error("Multiple SKUs found for the given sku attributes");
+            throw new CmsException("Multiple SKUs found for the given sku attributes");
+        }
+
+        return response.getData().searchSkus.get(0);
     }
 
     public Sku createSku(SkuAttributes skuAttributes) {
@@ -189,12 +188,65 @@ public class CmsService {
 
     public Sku getOrCreateSku(SkuAttributes attributes) {
         try {
-            CmsSkuResponse response = getSkuByAttributes(attributes);
-            return response.getData().getSearchSkus().get(0);
+            return getSkuByAttributes(attributes);
         } catch (CmsException cmsException) {
             log.info("SKU not found. Creating new SKU for attributes {}", attributes);
             return createSku(attributes);
         }
+    }
+
+    // This method returns a list of alike SKUs based on the attributes provided.
+    public List<Sku> getSkusByAttributes(SkuAttributes attributes, boolean getLiteResponse) {
+        Map<String, Object> requestParams = cmsHelper.getQueryForSkusSearch(attributes);
+
+        log.info("Searching for SKU(s) by attributes from CMS, Payload: {}", requestParams);
+        String resourcePath = getLiteResponse ? "searchSkuLite.graphql" : "searchSku.graphql";
+        CmsSkuResponse response = skuSearchHelper("SearchSkus", resourcePath, requestParams);
+
+        if (Objects.isNull(response) || Objects.isNull(response.getData())) {
+            throw new CmsException("SKU search by attributes returned null response");
+        }
+
+        if (CollectionUtils.isEmpty(response.getData().getSearchSkus())) {
+            throw new CmsException("No SKU found for the given sku attributes");
+        }
+
+        return response.getData().getSearchSkus();
+    }
+
+    public List<Sku> skuSearch(Map<String, String> body) {
+        String searchType = Optional.ofNullable(body.get("search_type"))
+                .orElseThrow(() -> new RuntimeException("Search type is required for search!"));
+
+        body.remove("search_type");
+
+        switch (searchType) {
+            case "SEARCH_BY_CODES":
+                return searchSkusByCodes(body);
+            case "SEARCH_BY_ATTRIBUTES":
+                return Collections.singletonList(getSkuByAttributes(cmsHelper.getAttributesFromMap(body)));
+            case "SEARCH_ALIKE_SKUS":
+                return searchAlikeSkus(body);
+            default:
+                throw new IllegalArgumentException("Invalid search type: " + searchType);
+        }
+    }
+
+    private List<Sku> searchSkusByCodes(Map<String, String> body) {
+        String codes = Optional.ofNullable(body.get("codes"))
+                .orElseThrow(() -> new RuntimeException("SKU Codes are required for search!"));
+
+        return getSkuByCodes(Arrays.stream(codes.split(","))
+                .map(String::trim)
+                .collect(Collectors.toList()));
+    }
+
+    private List<Sku> searchAlikeSkus(Map<String, String> body) {
+        boolean getLiteResponse = Optional.ofNullable(body.get("get_lite_response"))
+                .map(Boolean::parseBoolean)
+                .orElse(false);
+
+        return getSkusByAttributes(cmsHelper.getAttributesFromMap(body), getLiteResponse);
     }
 
     public Date fetchSkuExpiryDate(String skuCode, DateTime createdAt) {
