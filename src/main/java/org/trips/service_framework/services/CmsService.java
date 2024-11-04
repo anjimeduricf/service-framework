@@ -13,6 +13,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.trips.service_framework.constants.CmsConstants;
+import org.trips.service_framework.dtos.CmsSearchRequestBody;
 import org.trips.service_framework.dtos.CmsSkuResponse;
 import org.trips.service_framework.dtos.CmsSkuResponse.Sku;
 import org.trips.service_framework.dtos.SkuAttributes;
@@ -196,11 +197,11 @@ public class CmsService {
     }
 
     // This method returns a list of alike SKUs based on the attributes provided.
-    public List<Sku> getSkusByAttributes(SkuAttributes attributes, boolean getLiteResponse) {
+    public List<Sku> getSkusByAttributes(SkuAttributes attributes, Boolean includeAttributes) {
         Map<String, Object> requestParams = cmsHelper.getQueryForSkusSearch(attributes);
 
         log.info("Searching for SKU(s) by attributes from CMS, Payload: {}", requestParams);
-        String resourcePath = getLiteResponse ? "searchSkuLite.graphql" : "searchSku.graphql";
+        String resourcePath = includeAttributes ? "searchSku.graphql" : "searchSkuLite.graphql";
         CmsSkuResponse response = skuSearchHelper("SearchSkus", resourcePath, requestParams);
 
         if (Objects.isNull(response) || Objects.isNull(response.getData())) {
@@ -214,39 +215,40 @@ public class CmsService {
         return response.getData().getSearchSkus();
     }
 
-    public List<Sku> skuSearch(Map<String, String> body) {
-        String searchType = Optional.ofNullable(body.get("search_type"))
-                .orElseThrow(() -> new RuntimeException("Search type is required for search!"));
+    public List<Sku> skuSearch(CmsSearchRequestBody body) {
+        ValidationUtils.validate(body);
 
-        body.remove("search_type");
-
-        switch (searchType) {
+        switch (body.getSearchType()) {
             case "SEARCH_BY_CODES":
-                return searchSkusByCodes(body);
+                return searchByCodes(body);
             case "SEARCH_BY_ATTRIBUTES":
-                return Collections.singletonList(getSkuByAttributes(cmsHelper.getAttributesFromMap(body)));
+                return searchByAttributes(body);
             case "SEARCH_ALIKE_SKUS":
                 return searchAlikeSkus(body);
             default:
-                throw new IllegalArgumentException("Invalid search type: " + searchType);
+                throw new IllegalArgumentException("Invalid search type: " + body.getSearchType());
         }
     }
 
-    private List<Sku> searchSkusByCodes(Map<String, String> body) {
-        String codes = Optional.ofNullable(body.get("codes"))
-                .orElseThrow(() -> new RuntimeException("SKU Codes are required for search!"));
-
-        return getSkuByCodes(Arrays.stream(codes.split(","))
-                .map(String::trim)
-                .collect(Collectors.toList()));
+    private List<Sku> searchByCodes(CmsSearchRequestBody body) {
+        return Optional.ofNullable(body.getSkuCodes())
+                .map(this::getSkuByCodes)
+                .orElseThrow(() -> new IllegalArgumentException("Sku Codes cannot be empty for SEARCH_BY_CODES"));
     }
 
-    private List<Sku> searchAlikeSkus(Map<String, String> body) {
-        boolean getLiteResponse = Optional.ofNullable(body.get("get_lite_response"))
-                .map(Boolean::parseBoolean)
-                .orElse(false);
+    private List<Sku> searchByAttributes(CmsSearchRequestBody body) {
+        return Optional.ofNullable(body.getAttributes())
+                .map(this::getSkuByAttributes)
+                .map(Collections::singletonList)
+                .orElseThrow(() -> new IllegalArgumentException("Attributes cannot be empty for SEARCH_BY_ATTRIBUTES"));
+    }
 
-        return getSkusByAttributes(cmsHelper.getAttributesFromMap(body), getLiteResponse);
+    private List<Sku> searchAlikeSkus(CmsSearchRequestBody body) {
+        Boolean includeAttributes = Optional.ofNullable(body.getIncludeAttributes()).orElse(true);
+
+        return Optional.ofNullable(body.getAttributes())
+                .map(attrs -> getSkusByAttributes(attrs, includeAttributes))
+                .orElseThrow(() -> new IllegalArgumentException("Attributes cannot be empty for SEARCH_ALIKE_SKUS"));
     }
 
     public Date fetchSkuExpiryDate(String skuCode, DateTime createdAt) {
