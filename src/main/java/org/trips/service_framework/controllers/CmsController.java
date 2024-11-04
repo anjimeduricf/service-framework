@@ -20,9 +20,9 @@ import java.util.*;
 @RestController
 @RequestMapping("/cms")
 @RequiredArgsConstructor
-public class BaseCmsController {
-    protected final CmsService cmsService;
-    protected final CmsHelper cmsHelper;
+public class CmsController {
+    private final CmsService cmsService;
+    private final CmsHelper cmsHelper;
 
     protected CmsResponse createResponse(List<Sku> skuList) {
         return CmsResponse.builder()
@@ -43,7 +43,7 @@ public class BaseCmsController {
 
     @Authenticate
     @RequestMapping(value = "/find-or-create", method = RequestMethod.POST)
-    public CmsResponse lookupOrCreateSku(@RequestBody SkuAttributes body) {
+    public CmsResponse findOrCreateSku(@RequestBody SkuAttributes body) {
         return createResponse(Collections.singletonList(cmsService.getOrCreateSku(body)));
     }
 }

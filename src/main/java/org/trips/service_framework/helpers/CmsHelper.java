@@ -52,7 +52,7 @@ public class CmsHelper {
 
     public Map<String, Object> getSearchQueryFromAttributes(SkuAttributes skuAttributes) {
         List<Map<String, Object>> attributeList = new ArrayList<>();
-        CmsConstants.attributeNames.forEach(attribute -> {
+        CmsConstants.ATTRIBUTES_NAMES.forEach(attribute -> {
             String value = (String) SkuAttributes.attributeGetters().get(attribute).apply(skuAttributes);
             attributeList.add(createRequestMap(attribute, value, "EQ", true));
         });
@@ -62,7 +62,7 @@ public class CmsHelper {
 
     public Map<String, Object> getQueryForSkusSearch(SkuAttributes skuAttributes) {
         List<Map<String, Object>> attributeList = new ArrayList<>();
-        CmsConstants.attributeNames.forEach(attribute -> {
+        CmsConstants.ATTRIBUTES_NAMES.forEach(attribute -> {
             String value = (String) SkuAttributes.attributeGetters().get(attribute).apply(skuAttributes);
             String sanitizeValue = CmsUtils.sanitizeInput(attribute, value);
             if (CmsUtils.nonNull(sanitizeValue)) {
