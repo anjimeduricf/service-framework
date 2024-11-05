@@ -1,4 +1,4 @@
-package org.trips.service_framework.heplers;
+package org.trips.service_framework.helpers;
 
 import org.springframework.stereotype.Service;
 import org.trips.service_framework.constants.CmsConstants;
@@ -51,14 +51,23 @@ public class CmsHelper {
     }
 
     public Map<String, Object> getSearchQueryFromAttributes(SkuAttributes skuAttributes) {
-        List<String> attributeNames = List.of("species", "product_type", "spec", "catch_type",
-                "freezing_method", "packing", "glazing_percentage", "unit_weight",
-                "quantity_per_unit", "unit_per_carton", "treatment", "grade", "quality", "certification");
-
         List<Map<String, Object>> attributeList = new ArrayList<>();
-        attributeNames.forEach(attribute -> {
+        CmsConstants.ATTRIBUTES_NAMES.forEach(attribute -> {
             String value = (String) SkuAttributes.attributeGetters().get(attribute).apply(skuAttributes);
             attributeList.add(createRequestMap(attribute, value, "EQ", true));
+        });
+
+        return Map.of("searchQuery", Map.of("filters", attributeList));
+    }
+
+    public Map<String, Object> getQueryForSkusSearch(SkuAttributes skuAttributes) {
+        List<Map<String, Object>> attributeList = new ArrayList<>();
+        CmsConstants.ATTRIBUTES_NAMES.forEach(attribute -> {
+            String value = (String) SkuAttributes.attributeGetters().get(attribute).apply(skuAttributes);
+            String sanitizeValue = CmsUtils.sanitizeInput(attribute, value);
+            if (CmsUtils.nonNull(sanitizeValue)) {
+                attributeList.add(createRequestMap(attribute, sanitizeValue, "EQ", true));
+            }
         });
 
         return Map.of("searchQuery", Map.of("filters", attributeList));
