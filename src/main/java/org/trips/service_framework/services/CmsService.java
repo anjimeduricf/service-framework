@@ -23,6 +23,7 @@ import org.trips.service_framework.exceptions.CmsException;
 import org.trips.service_framework.exceptions.NotAllowedException;
 import org.trips.service_framework.exceptions.NotFoundException;
 import org.trips.service_framework.helpers.CmsHelper;
+import org.trips.service_framework.utils.CmsUtils;
 import org.trips.service_framework.utils.GraphQLUtils;
 import org.trips.service_framework.utils.ValidationUtils;
 import reactor.netty.http.client.HttpClient;
@@ -122,7 +123,7 @@ public class CmsService {
 
     // This method returns an exact SKU based on the attributes provided.
     public Sku getSkuByAttributes(SkuAttributes attributes) {
-        Map<String, Object> requestParams = cmsHelper.getSearchQueryFromAttributes(attributes);
+        Map<String, Object> requestParams = cmsHelper.getSearchQueryFromAttributes(CmsUtils.validateQuantityAttributes(attributes));
 
         log.info("Searching for SKU by attributes from CMS, Payload: {}", requestParams);
         CmsSkuResponse response = skuSearchHelper("SearchSkus", "searchSku.graphql", requestParams);
@@ -136,15 +137,14 @@ public class CmsService {
         }
 
         if (response.getData().searchSkus.size() > 1) {
-            log.error("Multiple SKUs found for the given sku attributes");
-            throw new CmsException("Multiple SKUs found for the given sku attributes");
+            log.error("Multiple SKUs found for the given sku attributes, returning the first SKU");
         }
 
         return response.getData().searchSkus.get(0);
     }
 
     public Sku createSku(SkuAttributes skuAttributes) {
-        ValidationUtils.validate(skuAttributes);
+        ValidationUtils.validate(CmsUtils.validateQuantityAttributes(skuAttributes));
         Map<String, Object> requestParams = cmsHelper.getSearchQueryFromAttributes(skuAttributes);
         List<Map<String, String>> attributes = (List) ((Map) requestParams.get("searchQuery")).get("filters");
         Map<String, String> skuAttributesMap = attributes.stream()
@@ -198,7 +198,7 @@ public class CmsService {
 
     // This method returns a list of alike SKUs based on the attributes provided.
     public List<Sku> getSkusByAttributes(SkuAttributes attributes, Boolean includeAttributes) {
-        Map<String, Object> requestParams = cmsHelper.getQueryForSkusSearch(attributes);
+        Map<String, Object> requestParams = cmsHelper.getQueryForSkusSearch(CmsUtils.validateQuantityAttributes(attributes));
 
         log.info("Searching for SKU(s) by attributes from CMS, Payload: {}", requestParams);
         String resourcePath = includeAttributes ? "searchSku.graphql" : "searchSkuLite.graphql";
