@@ -123,7 +123,7 @@ public class CmsService {
 
     // This method returns an exact SKU based on the attributes provided.
     public Sku getSkuByAttributes(SkuAttributes attributes) {
-        Map<String, Object> requestParams = cmsHelper.getSearchQueryFromAttributes(CmsUtils.validateQuantityAttributes(attributes));
+        Map<String, Object> requestParams = cmsHelper.getSearchQueryFromAttributes(CmsUtils.enrichQuantityAttributes(attributes));
 
         log.info("Searching for SKU by attributes from CMS, Payload: {}", requestParams);
         CmsSkuResponse response = skuSearchHelper("SearchSkus", "searchSku.graphql", requestParams);
@@ -144,7 +144,7 @@ public class CmsService {
     }
 
     public Sku createSku(SkuAttributes skuAttributes) {
-        ValidationUtils.validate(CmsUtils.validateQuantityAttributes(skuAttributes));
+        ValidationUtils.validate(CmsUtils.enrichQuantityAttributes(skuAttributes));
         Map<String, Object> requestParams = cmsHelper.getSearchQueryFromAttributes(skuAttributes);
         List<Map<String, String>> attributes = (List) ((Map) requestParams.get("searchQuery")).get("filters");
         Map<String, String> skuAttributesMap = attributes.stream()
@@ -198,7 +198,7 @@ public class CmsService {
 
     // This method returns a list of alike SKUs based on the attributes provided.
     public List<Sku> getSkusByAttributes(SkuAttributes attributes, Boolean includeAttributes) {
-        Map<String, Object> requestParams = cmsHelper.getQueryForSkusSearch(CmsUtils.validateQuantityAttributes(attributes));
+        Map<String, Object> requestParams = cmsHelper.getQueryForSkusSearch(CmsUtils.enrichQuantityAttributes(attributes));
 
         log.info("Searching for SKU(s) by attributes from CMS, Payload: {}", requestParams);
         String resourcePath = includeAttributes ? "searchSku.graphql" : "searchSkuLite.graphql";

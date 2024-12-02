@@ -45,7 +45,7 @@ public class CmsUtils {
         return treatment.trim();
     }
 
-    public static SkuAttributes validateQuantityAttributes(SkuAttributes skuAttributes) {
+    public static SkuAttributes enrichQuantityAttributes(SkuAttributes skuAttributes) {
         String unitPerCarton = skuAttributes.getUnitPerCarton();
         String quantityPerUnit = skuAttributes.getQuantityPerUnit();
         String unitWeight = skuAttributes.getUnitWeight();
