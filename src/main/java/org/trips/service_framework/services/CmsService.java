@@ -150,7 +150,9 @@ public class CmsService {
         Map<String, String> skuAttributesMap = attributes.stream()
                 .collect(Collectors.toMap(attribute -> attribute.get("name"), attribute -> attribute.get("value")));
 
-        skuAttributesMap.put("version", "v2");
+        int shelfLife = CmsUtils.getDefaultShelfLife(skuAttributes.getFreezingMethod());
+        skuAttributesMap.put("shelf_life", String.valueOf(shelfLife));
+        skuAttributesMap.put("version", CmsConstants.VERSION);
 
         List<Map<String, String>> skuCreationAttributes = skuAttributesMap.entrySet()
                 .stream().map(x -> Map.of("name", x.getKey(), "value", x.getValue())).collect(Collectors.toList());
@@ -253,14 +255,20 @@ public class CmsService {
 
     public Date fetchSkuExpiryDate(String skuCode, DateTime createdAt) {
         log.info("CMS: fetching expiry date for skuCode: {}, createdAt: {}", skuCode, createdAt);
-        DateTime referenceTime = Objects.nonNull(createdAt) ? createdAt : DateTime.now();
-        Date defaultShelfLife = referenceTime.plusYears(2).toDate();
-
         Sku sku = getSkuByCodes(List.of(skuCode)).get(0);
+        String freezingMethod = sku.attributes.stream()
+                .filter(attr -> attr.getAttribute().getName().equals("freezing_method"))
+                .map(attr -> attr.value)
+                .findFirst()
+                .orElse(CmsConstants.NOT_APPLICABLE);
+
+        int defaultShelfLife = CmsUtils.getDefaultShelfLife(freezingMethod);
+        DateTime referenceTime = Objects.nonNull(createdAt) ? createdAt : DateTime.now();
+        Date defaultExpiryDate = referenceTime.plusDays(defaultShelfLife).toDate();
 
         if (sku.getShelfLife().isEmpty()) {
-            log.info("CMS: received empty shelfLife for skuCode: {}, using defaultShelfLife: {}", skuCode, defaultShelfLife);
-            return defaultShelfLife;
+            log.info("CMS: received empty shelfLife for skuCode: {}, using defaultShelfLife: {}", skuCode, defaultExpiryDate);
+            return defaultExpiryDate;
         }
 
         try {
@@ -269,7 +277,7 @@ public class CmsService {
             return referenceTime.plusDays(shelfLife).toDate();
         } catch (NumberFormatException e) {
             log.warn("Invalid shelf life found from cms for sku code {}", skuCode);
-            return defaultShelfLife;
+            return defaultExpiryDate;
         }
     }
 
