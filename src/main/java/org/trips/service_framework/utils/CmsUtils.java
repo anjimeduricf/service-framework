@@ -45,6 +45,14 @@ public class CmsUtils {
         return treatment.trim();
     }
 
+    public static int getDefaultShelfLife(String freezingMethod) {
+        if (CmsConstants.FREEZING_METHOD_FRESH.equals(freezingMethod)) {
+            return CmsConstants.RAW_MATERIAL_EXPIRY_DAYS;
+        }
+
+        return CmsConstants.DEFAULT_EXPIRY_DAYS;
+    }
+
     public static SkuAttributes enrichQuantityAttributes(SkuAttributes skuAttributes) {
         String unitPerCarton = skuAttributes.getUnitPerCarton();
         String quantityPerUnit = skuAttributes.getQuantityPerUnit();
