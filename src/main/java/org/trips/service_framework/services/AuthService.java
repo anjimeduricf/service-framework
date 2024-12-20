@@ -55,7 +55,7 @@ public class AuthService {
         return response.getData().getClientId();
     }
 
-    public Map<String, RealmUser> getUsers(List<String> ids) {
+    public Map<String, RealmUser> getUsers(Collection<String> ids) {
         Cache realmUserCache = Optional.ofNullable(cacheManager.getCache(CacheConfig.REALM_USER_CACHE))
                 .orElseThrow(() -> CacheNotFoundException.ofName(CacheConfig.REALM_USER_CACHE));
 
