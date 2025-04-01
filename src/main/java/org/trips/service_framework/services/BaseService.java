@@ -110,7 +110,7 @@ public abstract class BaseService<Entity extends BaseEntity> {
     public Entity delete(Long id) {
         Entity entity = getRepository().getReferenceById(id);
         entity.setDeletedAt(DateTime.now());
-        entity.setDeletedBy(Objects.nonNull(Context.getUserId()) ? Context.getUserId() : "System");
+        entity.setDeletedBy(Optional.ofNullable(Context.getUserId()).orElse("System"));
         return getRepository().save(entity);
     }
 
@@ -119,7 +119,7 @@ public abstract class BaseService<Entity extends BaseEntity> {
         List<Entity> entities = getRepository().findAllById(ids);
         for (Entity entity: entities) {
             entity.setDeletedAt(DateTime.now());
-            entity.setDeletedBy(Objects.nonNull(Context.getUserId()) ? Context.getUserId() : "System");
+            entity.setDeletedBy(Optional.ofNullable(Context.getUserId()).orElse("System"));
         }
         return getRepository().saveAll(entities);
     }
