@@ -113,4 +113,14 @@ public abstract class BaseService<Entity extends BaseEntity> {
         entity.setDeletedBy(Objects.nonNull(Context.getUserId()) ? Context.getUserId() : "System");
         return getRepository().save(entity);
     }
+
+    @Transactional(rollbackFor = RuntimeException.class)
+    public List<Entity> bulkDelete(List<Long> ids) {
+        List<Entity> entities = getRepository().findAllById(ids);
+        for (Entity entity: entities) {
+            entity.setDeletedAt(DateTime.now());
+            entity.setDeletedBy(Objects.nonNull(Context.getUserId()) ? Context.getUserId() : "System");
+        }
+        return getRepository().saveAll(entities);
+    }
 }
